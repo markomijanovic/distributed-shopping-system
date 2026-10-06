@@ -13,9 +13,22 @@ A Java EE 8 shopping backend with a REST gateway and three JMS-connected subsyst
 
 The gateway uses `jms/IS1Factory`, request queues `jms/Queue1` through `jms/Queue3`, and `jms/QueueResponse` for correlated replies.
 
+```mermaid
+flowchart TD
+    Client[REST client] --> Gateway[CentralniServer]
+    Gateway -->|Queue1| Users[Podsistem1: users]
+    Gateway -->|Queue2| Catalog[Podsistem2: catalog and carts]
+    Gateway -->|Queue3| Orders[Podsistem3: orders]
+    Users -->|QueueResponse| Gateway
+    Catalog -->|QueueResponse| Gateway
+    Orders -->|QueueResponse| Gateway
+```
+
+Subsystem 3 also queries the other subsystems using temporary JMS reply queues during order processing. See the [REST endpoint reference](docs/API.md) for controller routes.
+
 ## Build
 
-Requires JDK 8 or 11 and Maven. The preparation adds a Maven reactor because the local `Podsistem3` folder had no build descriptor.
+Requires JDK 8 or 11 and Maven. The root Maven reactor builds all four modules together.
 
 ```sh
 mvn clean package
@@ -33,19 +46,25 @@ For each subsystem, copy `src/conf/persistence.xml.example` to `src/conf/persist
 
 Deploy the gateway WAR, and launch each subsystem using the server's application-client container (`appclient -client <jar>`), rather than plain `java -jar`, because the source depends on injected JMS resources.
 
+## Deployment verification
+
+1. Configure the three existing database schemas and each local persistence file.
+2. Create the JMS connection factory and four named queues.
+3. Build the reactor, deploy the WAR, and start all three application clients.
+4. Check the server/client logs for successful persistence and JMS initialization.
+5. Exercise a read operation through the gateway, then a complete cart-to-order flow with synthetic users and products. Check both response payloads and resulting database records.
+
+This sequence describes the integration work still required; it is not a record of a successful deployment.
+
 ## Limitations
 
-This is coursework code. Authentication/authorization, password handling, transactions, response-queue consumption under concurrency, and failure recovery need review before production use. Some gateway requests wait five seconds for a response. This preparation does not claim production security or end-to-end validation.
+This is coursework code. Authentication/authorization, password handling, transactions, response-queue consumption under concurrency, and failure recovery need review before production use. Some gateway requests wait five seconds for a response. End-to-end deployment and security have not been validated.
 
 ## Context
 
-Educational project by Marko Mijanovic, University of Belgrade, School of Electrical Engineering. Course scaffolding and supplied assets remain part of the project; this preparation does not grant a new license to third-party material.
+Educational project by [Marko Mijanovic](https://github.com/markomijanovic), University of Belgrade, School of Electrical Engineering. Supplied course scaffolding and assets retain their original licensing terms.
 
-## Preparation validation
+## Verification
 
-- JDK 8 javac with Java EE 8 API: passed.
-- JDK 8 javac with Java EE 8 API: passed.
-- JDK 8 javac with Java EE 8 API: passed.
-- JDK 8 javac with Java EE 8 API: passed.
-
-All four modules compile with the local JDK 8 and Java EE 8 API. Maven packaging and server/database/JMS integration still require validation in the deployment environment.
+- All four modules compile with JDK 8 and the Java EE 8 API.
+- Maven packaging and live server/database/JMS integration have not been verified.
